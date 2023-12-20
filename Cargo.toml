@@ -1,12 +1,7 @@
 [package]
-name = "EmbedVM"
+name = "rust_embed_forth"
 version = "0.2.1"
 authors = ["Richard James Howe <howe.r.j.89@gmail.com>"]
+edition = "2021"
 
-[lib]
-name = "embed"
-path = "embed.rs"
-
-[[bin]]
-name = "eforth"
-path = "main.rs"
+[dependencies]

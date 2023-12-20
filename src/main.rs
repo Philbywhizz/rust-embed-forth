@@ -1,8 +1,9 @@
-extern crate embed;
-
 /*use std::fs::File;
 use std::path::Path;
 use std::env;*/
+
+mod eforth;
+mod embed;
 
 fn main() {
     /*

@@ -1,9 +1,8 @@
-#![crate_name = "embed"]
-
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
-mod eforth;
+
+use crate::eforth;
 
 /// * `CORE_SIZE` is the total number of cells addressable by the virtual machine
 const CORE_SIZE: usize = 0x8000;
@@ -82,12 +81,13 @@ pub struct VM {
     /// `count` is the number instructions executed so far, it is only updated
     /// if tracing is on.
     count: u64,
-    /// The virtual machine has minimal state, a program counter (`pc`),
-    /// a return stack pointer `rp`, a data stack pointer `sp` and a top
-    /// of stack pointer `t`.
+	/// `pc` Program counter.
     pc: u16,
+	/// `rp`Return stack pointer.
     rp: u16,
+	/// `sp` Data stack pointer.
     sp: u16,
+	/// `t` Top of stack pointer.
     t: u16,
     /// `core` contains the program, data, and both stacks which index
     /// into `core` with `rp` and `sp`
