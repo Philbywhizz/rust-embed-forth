@@ -11,6 +11,50 @@ const SP0: u16 = 0x2200;
 /// * `RP0` is the starting point of the return stack
 const RP0: u16 = 0x7fff;
 
+// Constants for CPU Instructions
+const INSTRUCTION_LIT: u16 = 0x8000;
+const INSTRUCTION_ALU: u16 = 0x6000;
+const INSTRUCTION_CALL: u16 = 0x4000;
+const INSTRUCTION_ZBRANCH: u16 = 0x2000;
+const INSTRUCTION_BRANCH: u16 = 0x0000;
+
+/// Mask to identify instruction bits
+const MASK_INSTRUCTION: u16 = 0xe000;
+/// Mask to identify ALU opCodes
+const MASK_ALU_OPS: u16 = 0x1f00;
+/// Mask to identify target address bits
+const MASK_TARGET: u16 = 0x1fff;
+
+// Constants for ALU opcodes
+const OPCODE_NOP: u16 = 0x0000;
+const OPCODE_T2N: u16 = 0x0100;
+const OPCODE_R2T: u16 = 0x0200;
+const OPCODE_M2T: u16 = 0x0300;
+const OPCODE_N2T: u16 = 0x0400;
+const OPCODE_T_PLUS_N: u16 = 0x0500;
+const OPCODE_T_MUL_N: u16 = 0x0600;
+const OPCODE_T_AND_N: u16 = 0x0700;
+const OPCODE_T_OR_N: u16 = 0x0800;
+const OPCODE_T_XOR_N: u16 = 0x0900;
+const OPCODE_NOT_T: u16 = 0x0a00;
+const OPCODE_SUB_T: u16 = 0x0b00;
+const OPCODE_T_EQ_Z: u16 = 0x0c00;
+const OPCODE_T_EQ_N: u16 = 0x0d00;
+const OPCODE_N_ULT_T: u16 = 0x0e00;
+const OPCODE_N_LT_T: u16 = 0x0f00;
+const OPCODE_N_RSHIFT_T: u16 = 0x1000;
+const OPCODE_N_LSHIFT_T: u16 = 0x1100;
+const OPCODE_SP_DEPTH: u16 = 0x1200;
+const OPCODE_RP_DEPTH: u16 = 0x1300;
+const OPCODE_SP_SET: u16 = 0x1400;
+const OPCODE_RP_SET: u16 = 0x1500;
+const OPCODE_SAVE: u16 = 0x1600;
+const OPCODE_TX: u16 = 0x1700;
+const OPCODE_RX: u16 = 0x1800;
+const OPCODE_UM_DIV_MOD: u16 = 0x1900;
+const OPCODE_DIV_MOD: u16 = 0x1a00;
+const OPCODE_BYE: u16 = 0x1b00;
+
 /// `fputc` writes a single character of output to a file, and returns
 /// all bits set on an error. It emulates the C function of the same name,
 /// and is not a recommended way to output data in Rust, but is required for
@@ -193,13 +237,13 @@ impl VM {
 
             VM::csv(self, &mut std::io::stderr(), pc, instruction, t, sp, rp);
 
-            if 0x8000 & instruction == 0x8000 {
+            if INSTRUCTION_LIT & instruction == INSTRUCTION_LIT {
                 /* literal */
                 sp += 1;
                 m[sp as usize] = t;
                 t = instruction & 0x7fff;
                 pc += 1;
-            } else if 0xe000 & instruction == 0x6000 {
+            } else if MASK_INSTRUCTION & instruction == INSTRUCTION_ALU {
                 /* ALU */
                 let mut tp = t;
                 let mut n = m[sp as usize];
@@ -209,51 +253,53 @@ impl VM {
                     pc + 1
                 };
 
-                let alu = ((instruction >> 8) & 0x1f) as u8;
+                let alu = instruction & MASK_ALU_OPS;
                 match alu {
-                    0 => { /* tp = t */ }
-                    1 => tp = n,
-                    2 => tp = m[rp as usize],
-                    3 => tp = m[(t >> 1) as usize],
-                    4 => {
+                    OPCODE_NOP => { /* tp = t */ }
+                    OPCODE_T2N => tp = n,
+                    OPCODE_R2T => tp = m[rp as usize],
+                    OPCODE_M2T => tp = m[(t >> 1) as usize],
+                    OPCODE_N2T => {
                         m[(t >> 1) as usize] = n;
                         sp -= 1;
                         tp = m[sp as usize]
                     }
-                    5 => {
+                    OPCODE_T_PLUS_N => {
                         d = (t as u32) + (n as u32);
                         tp = (d >> 16) as u16;
                         m[sp as usize] = d as u16;
                         n = d as u16
                     }
-                    6 => {
+                    OPCODE_T_MUL_N => {
                         d = (t as u32) * (n as u32);
                         tp = (d >> 16) as u16;
                         m[sp as usize] = d as u16;
                         n = d as u16
                     }
-                    7 => tp &= n,
-                    8 => tp |= n,
-                    9 => tp ^= n,
-                    10 => tp = !t,
-                    11 => tp = tp.wrapping_sub(1),
-                    12 => tp = if t == 0 { 0xffff } else { 0 },
-                    13 => tp = if t == n { 0xffff } else { 0 },
-                    14 => tp = if n < t { 0xffff } else { 0 },
-                    15 => tp = if (n as i16) < (t as i16) { 0xffff } else { 0 },
-                    16 => tp = n >> t,
-                    17 => tp = n << t,
-                    18 => tp = sp << 1,
-                    19 => tp = rp << 1,
-                    20 => sp = t >> 1,
-                    21 => {
+                    OPCODE_T_AND_N => tp &= n,
+                    OPCODE_T_OR_N => tp |= n,
+                    OPCODE_T_XOR_N => tp ^= n,
+                    OPCODE_NOT_T => tp = !t,
+                    OPCODE_SUB_T => tp = tp.wrapping_sub(1),
+                    OPCODE_T_EQ_Z => tp = if t == 0 { 0xffff } else { 0 },
+                    OPCODE_T_EQ_N => tp = if t == n { 0xffff } else { 0 },
+                    OPCODE_N_ULT_T => tp = if n < t { 0xffff } else { 0 },
+                    OPCODE_N_LT_T => tp = if (n as i16) < (t as i16) { 0xffff } else { 0 },
+                    OPCODE_N_RSHIFT_T => tp = n >> t,
+                    OPCODE_N_LSHIFT_T => tp = n << t,
+                    OPCODE_SP_DEPTH => tp = sp << 1,
+                    OPCODE_RP_DEPTH => tp = rp << 1,
+                    OPCODE_SP_SET => sp = t >> 1,
+                    OPCODE_RP_SET => {
                         rp = t >> 1;
                         tp = n
                     }
-                    22 => tp = self.save_file(block, n >> 1, (((t as u32) + 1) >> 1) as u16),
-                    23 => tp = fputc(output, t as u8),
-                    24 => tp = fgetc(input),
-                    25 => {
+                    OPCODE_SAVE => {
+                        tp = self.save_file(block, n >> 1, (((t as u32) + 1) >> 1) as u16)
+                    }
+                    OPCODE_TX => tp = fputc(output, t as u8),
+                    OPCODE_RX => tp = fgetc(input),
+                    OPCODE_UM_DIV_MOD => {
                         if t != 0 {
                             tp = n / t;
                             t = n % t;
@@ -263,7 +309,7 @@ impl VM {
                             tp = 10
                         }
                     }
-                    26 => {
+                    OPCODE_DIV_MOD => {
                         if t != 0 {
                             tp = ((n as i16) / (t as i16)) as u16;
                             t = ((n as i16) % (t as i16)) as u16;
@@ -273,10 +319,12 @@ impl VM {
                             tp = 10
                         }
                     }
-                    27 => {
+                    OPCODE_BYE => {
                         break 'eval;
                     }
-                    _ => {}
+                    _ => {
+                        panic!("Invalid Opcode 0x{:4x},", alu)
+                    }
                 }
 
                 sp = sp.wrapping_add(DELTA[(instruction & 0x3) as usize]);
@@ -291,19 +339,25 @@ impl VM {
                     m[sp as usize] = t
                 }
                 t = tp;
-            } else if 0xe000 & instruction == 0x4000 {
+            } else if MASK_INSTRUCTION & instruction == INSTRUCTION_CALL {
                 /* call */
                 rp -= 1;
                 m[rp as usize] = (pc + 1) << 1;
-                pc = instruction & 0x1fff;
-            } else if 0xe000 & instruction == 0x2000 {
+                pc = instruction & MASK_TARGET;
+            } else if MASK_INSTRUCTION & instruction == INSTRUCTION_ZBRANCH {
                 /* 0branch */
-                pc = if t == 0 { instruction & 0x1fff } else { pc + 1 };
+                pc = if t == 0 {
+                    instruction & MASK_TARGET
+                } else {
+                    pc + 1
+                };
                 t = m[sp as usize];
                 sp -= 1;
-            } else {
+            } else if MASK_INSTRUCTION & instruction == INSTRUCTION_BRANCH {
                 /* branch */
-                pc = instruction & 0x1fff;
+                pc = instruction & MASK_TARGET;
+            } else {
+                panic!("Invalid instruction {}", instruction);
             }
         }
 
