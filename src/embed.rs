@@ -26,7 +26,7 @@ const RP0: u16 = 0x7fff;
 /// This function returns `t` on success and `0xffff` on error
 ///
 fn fputc(output: &mut dyn Write, t: u8) -> u16 {
-    let u: [u8; 1] = [t as u8];
+    let u: [u8; 1] = [t];
     if 1 == output.write(&u).unwrap() {
         t as u16
     } else {
@@ -81,13 +81,13 @@ pub struct VM {
     /// `count` is the number instructions executed so far, it is only updated
     /// if tracing is on.
     count: u64,
-	/// `pc` Program counter.
+    /// `pc` Program counter.
     pc: u16,
-	/// `rp`Return stack pointer.
+    /// `rp`Return stack pointer.
     rp: u16,
-	/// `sp` Data stack pointer.
+    /// `sp` Data stack pointer.
     sp: u16,
-	/// `t` Top of stack pointer.
+    /// `t` Top of stack pointer.
     t: u16,
     /// `core` contains the program, data, and both stacks which index
     /// into `core` with `rp` and `sp`
@@ -95,6 +95,7 @@ pub struct VM {
     core: [u16; CORE_SIZE],
 }
 
+#[allow(dead_code)]
 impl VM {
     /// `new` constructs a new virtual machine image that can be passed to `run`
     /// straight away, as the program memory is copied from a default image
@@ -216,7 +217,7 @@ impl VM {
                     3 => tp = m[(t >> 1) as usize],
                     4 => {
                         m[(t >> 1) as usize] = n;
-                        sp = sp - 1;
+                        sp -= 1;
                         tp = m[sp as usize]
                     }
                     5 => {
@@ -355,15 +356,7 @@ impl VM {
     /// * `rp`           - return stack pointer, index into `core`
     ///
     ///
-    fn csv(
-        &mut self,
-        output: &mut dyn Write,
-        pc: u16,
-        instruction: u16,
-        t: u16,
-        sp: u16,
-        rp: u16,
-    ) -> () {
+    fn csv(&mut self, output: &mut dyn Write, pc: u16, instruction: u16, t: u16, sp: u16, rp: u16) {
         if !self.tracing {
             return;
         }
@@ -387,7 +380,7 @@ impl VM {
             Some(name) => name,
         };
 
-        let mut file = match File::create(&Path::new(name)) {
+        let mut file = match File::create(Path::new(name)) {
             Err(r) => {
                 println!("failed to create block \"{}\": {}", name, r);
                 return 0xffff;
@@ -395,10 +388,7 @@ impl VM {
             Ok(r) => r,
         };
 
-        match self.save_block(&mut file, start, length) {
-            None => 0xffff,
-            Some(r) => r,
-        }
+        self.save_block(&mut file, start, length).unwrap_or(0xffff)
     }
 
     fn save_block(&self, block: &mut dyn Write, start: u16, length: u16) -> Option<u16> {
@@ -459,7 +449,7 @@ impl VM {
     ///
     /// TODO: Replace Option with proper Result return value
     pub fn load(&mut self, input: &mut dyn Read) -> Option<u16> {
-        let mut i = 0 as u16;
+        let mut i = 0_u16;
         self.reset();
         while i < (CORE_SIZE as u16) {
             let lo = fgetc(input);
